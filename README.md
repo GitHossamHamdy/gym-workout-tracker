@@ -50,7 +50,9 @@ The image pins Node **24.21.0-bookworm-slim** and its verified multi-platform di
 
 ## Kubernetes (your own cluster)
 
-The `k8s/` examples create **one** Deployment, an internal **ClusterIP** Service, and a **1 Gi ReadWriteOnce PVC**. They do not create a namespace, credentials, registry, Ingress, public IP, or storage class.
+The `k8s/` examples create **one** Deployment, a **LoadBalancer Service on port 3000**, and a **1 Gi ReadWriteOnce PVC**. They do not specify a namespace, credentials, registry, Ingress, static external IP, TLS configuration, or storage class.
+
+**The app has no authentication or TLS.** A LoadBalancer can make every workout readable and writable by anyone who can reach it. Restrict access and provide authentication/TLS protection before exposing real data.
 
 1. The Deployment uses Docker Hub image `hossameldinhamdy2008/gym-app:latest` with `imagePullPolicy: Always` so newly started pods resolve the mutable tag. Before deploying, confirm the image is available and built for your cluster's CPU architecture; prefer an immutable digest for reproducible releases. Building locally does not publish an image.
 2. Select your own kube context and namespace. Confirm a suitable default storage class or pre-provisioned PV can satisfy the PVC. Use a SQLite-compatible filesystem with working file locks and shared memory, not NFS/SMB. The storage driver must honor `fsGroup: 1000`; otherwise ask your storage administrator to provision writable UID/GID 1000 storage, not a privileged/root init-container workaround.
@@ -60,10 +62,13 @@ The `k8s/` examples create **one** Deployment, an internal **ClusterIP** Service
 kubectl kustomize k8s
 kubectl apply -k k8s
 kubectl rollout status deployment/workout-tracker
+kubectl get service workout-tracker
 kubectl port-forward --address 127.0.0.1 service/workout-tracker 3000:3000
 ```
 
-Open **http://127.0.0.1:3000** while port-forward runs. ClusterIP is not authentication: other reachable cluster workloads may access this app. Use a trusted cluster or your own network policy; external access requires authentication, TLS, and a protected reverse proxy. Do not add a public Ingress/LoadBalancer to this unauthenticated example.
+Check **EXTERNAL-IP** in `kubectl get service workout-tracker`; it may be an IP address or hostname. A working LoadBalancer implementation/cloud controller is required, otherwise the address may stay `<pending>`. Once access is protected/restricted, use that address on port **3000** (the app itself serves plain HTTP; supply TLS termination separately).
+
+Optional localhost access remains **http://127.0.0.1:3000** while port-forward runs. Port-forward does not disable the LoadBalancer or protect its external endpoint.
 
 **Do not scale horizontally or add an autoscaler.** SQLite WAL is a local, single-writer database, not a shared multi-pod service; ReadWriteOnce alone does not prevent multiple pods on the same node. `replicas: 1` with `strategy: Recreate` avoids overlapping pods during updates, at the cost of brief downtime. Keep the same PVC across restarts and stop the app before backups/restores; deleting the PVC may permanently delete workouts depending on the PV's reclaim policy.
 
