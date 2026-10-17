@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#243c35">
+  <meta name="description" content="Your simple, local workout journal.">
+  <title>Form — Workout journal</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#workout-form">Skip to workout</a>
+  <header class="site-header shell">
+    <a class="brand" href="/" aria-label="Form workout journal home"><span class="brand-mark" aria-hidden="true">F.</span> FORM <span class="brand-subtitle">WORKOUT JOURNAL</span></a>
+    <span class="local-badge"><span aria-hidden="true">●</span> Local &amp; personal</span>
+  </header>
+  <main class="shell">
+    <section class="intro" aria-labelledby="page-title">
+      <div><p class="eyebrow">ONE SET AT A TIME</p><h1 id="page-title">Make every set count.</h1><p class="lede">A little progress, written down. Log today or look back at how far you've come.</p></div>
+      <div class="journal-note"><span aria-hidden="true">↗</span><p>Your pace.<br>Your progress.</p></div>
+    </section>
+    <nav class="section-nav" aria-label="Journal sections"><a href="#editor">Log a workout</a><a href="#history">Workout history</a></nav>
+    <div class="workspace">
+      <section id="editor" class="panel" aria-labelledby="editor-title">
+        <div class="panel-heading"><div><p class="eyebrow">THE WORK</p><h2 id="editor-title">New workout</h2></div><span class="small-tag" id="editor-mode">LET'S GO</span></div>
+        <p id="form-success" class="notice success" role="status" hidden></p>
+        <div id="form-error" class="notice error" role="alert" tabindex="-1" hidden></div>
+        <form id="workout-form">
+          <fieldset id="editor-fields" class="unframed">
+            <legend class="sr-only">Workout details</legend>
+            <div class="workout-options">
+              <label>Workout date<input id="workout-date" type="date" min="0001-01-01" max="9999-12-31" required></label>
+              <label>New set unit<select id="default-unit"><option value="kg">Kilograms (kg)</option><option value="lb">Pounds (lb)</option></select></label>
+            </div>
+            <p class="hint">Units are saved with each set. Changing the default doesn't convert existing weights. Use 0 for bodyweight.</p>
+            <div id="exercises"></div>
+            <button type="button" id="add-exercise" class="button dashed">+ Add exercise</button>
+            <div class="form-actions"><button id="save-workout" type="submit" class="button primary">Save workout <span aria-hidden="true">↗</span></button><button id="reset-workout" type="button" class="button quiet">Clear form</button></div>
+          </fieldset>
+        </form>
+      </section>
+      <section id="history" class="panel history-panel" aria-labelledby="history-title">
+        <div class="panel-heading"><div><p class="eyebrow">THE PROGRESS</p><h2 id="history-title">Your history</h2></div><span id="workout-count" class="count-badge">—</span></div>
+        <div class="filter-row"><label for="history-date">Filter by date<input id="history-date" type="date" min="0001-01-01" max="9999-12-31"></label><button id="show-all" type="button" class="button quiet">Show all</button></div>
+        <div id="history-error" class="notice error" role="alert" hidden></div>
+        <button id="retry-history" type="button" class="button secondary" hidden>Retry loading history</button>
+        <p id="history-status" class="hint" role="status">Loading your workouts…</p>
+        <div id="workout-list" aria-busy="true"></div>
+      </section>
+    </div>
+  </main>
+  <footer class="shell site-footer"><span>Built for showing up.</span><span>Stored on this computer · No accounts or cloud sync</span></footer>
+  <noscript><p class="notice error shell">JavaScript is required to use this workout journal. Please enable it and reload.</p></noscript>
+
+  <template id="exercise-template">
+    <fieldset class="exercise">
+      <legend class="exercise-legend">Exercise</legend>
+      <div class="exercise-heading"><label class="exercise-name-label">Exercise name<input class="exercise-name" type="text" maxlength="100" placeholder="e.g. Goblet squat" autocomplete="off" required></label><button type="button" class="button icon-button remove-exercise" aria-label="Remove exercise">×</button></div>
+      <div class="set-heading" aria-hidden="true"><span>SET</span><span>WEIGHT</span><span>UNIT</span><span>REPS</span><span></span></div>
+      <div class="sets"></div>
+      <button type="button" class="button quiet add-set">+ Add set</button>
+    </fieldset>
+  </template>
+  <template id="set-template">
+    <div class="set-row"><span class="set-number" aria-hidden="true"></span><input class="set-weight" type="number" inputmode="decimal" min="0" max="100000" step="any" placeholder="0" required aria-label="Weight"><select class="set-unit" aria-label="Weight unit"><option value="kg">kg</option><option value="lb">lb</option></select><input class="set-reps" type="number" inputmode="numeric" min="1" max="10000" step="1" placeholder="8" required aria-label="Reps"><button type="button" class="button icon-button remove-set" aria-label="Remove set">×</button></div>
+  </template>
+</body>
+</html>

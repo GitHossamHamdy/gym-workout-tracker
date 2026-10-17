@@ -1,3 +1,10 @@
+# Local workout data (including SQLite journals and backups)
+data/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+
 # Logs
 logs
 *.log
