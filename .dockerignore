@@ -1,0 +1,29 @@
+# Allow only application runtime files and the locked dependency manifests.
+**
+!package.json
+!package-lock.json
+!app.js
+!server.js
+!store.js
+!validation.js
+!public/
+!public/app.js
+!public/index.html
+!public/styles.css
+
+# Defense in depth if the runtime allowlist is expanded later.
+**/node_modules
+**/.git
+**/data
+**/.env
+**/.env.*
+**/*.env
+**/*.sqlite*
+**/*.db*
+**/*-wal
+**/*-shm
+**/*-journal
+**/*.pem
+**/*.key
+**/*secret*
+**/*credential*
