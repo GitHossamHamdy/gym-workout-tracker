@@ -27,9 +27,9 @@ spec:
           type: RuntimeDefault
       containers:
         - name: workout-tracker
-          # Replace with your built image, made available to your own cluster.
-          image: example.invalid/workout-tracker:replace-me
-          imagePullPolicy: IfNotPresent
+          # Resolve the mutable Docker Hub tag on every pod start.
+          image: hossameldinhamdy2008/gym-app:latest
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 3000

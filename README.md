@@ -52,7 +52,7 @@ The image pins Node **24.21.0-bookworm-slim** and its verified multi-platform di
 
 The `k8s/` examples create **one** Deployment, an internal **ClusterIP** Service, and a **1 Gi ReadWriteOnce PVC**. They do not create a namespace, credentials, registry, Ingress, public IP, or storage class.
 
-1. Make your built image available to your cluster through its supported local-image or registry workflow. Building locally does not publish it. Replace `example.invalid/workout-tracker:replace-me` in `k8s/deployment.yaml` with your exact image tag (prefer an immutable digest); build for your cluster's CPU architecture.
+1. The Deployment uses Docker Hub image `hossameldinhamdy2008/gym-app:latest` with `imagePullPolicy: Always` so newly started pods resolve the mutable tag. Before deploying, confirm the image is available and built for your cluster's CPU architecture; prefer an immutable digest for reproducible releases. Building locally does not publish an image.
 2. Select your own kube context and namespace. Confirm a suitable default storage class or pre-provisioned PV can satisfy the PVC. Use a SQLite-compatible filesystem with working file locks and shared memory, not NFS/SMB. The storage driver must honor `fsGroup: 1000`; otherwise ask your storage administrator to provision writable UID/GID 1000 storage, not a privileged/root init-container workaround.
 3. Review the rendered resources, then deploy **only when you choose**:
 
