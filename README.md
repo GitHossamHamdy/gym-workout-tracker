@@ -11,7 +11,7 @@ A small, mobile-friendly, single-user workout journal. Log a calendar date, add 
 
 There is no build step. `npm run dev` restarts the server on file changes. Express is the only package dependency; SQLite uses Node's built-in `node:sqlite`, so no native driver/build tooling is needed.
 
-**Local use only: there is no authentication.** The server always binds to `127.0.0.1`, not the public network. Do not expose it through a proxy, tunnel, or public deployment. Anyone with access to this computer/server can read or change workouts. The responsive UI is not a hosted phone app; another device cannot connect to the default loopback listener.
+**There is no authentication.** Local `npm start` binds to `127.0.0.1` by default; another device cannot connect to that listener. Containers explicitly set `HOST=0.0.0.0` so container networking works, not to make the app public. Anyone with network access to the app can read or change workouts. Never expose it externally without authentication, TLS, and reverse-proxy protection.
 
 ## Using the journal
 
@@ -27,14 +27,53 @@ Limits: 50 exercises per workout, 50 sets per exercise, 100 characters per exerc
 ## Storage and configuration
 
 - Default database: `data/workouts.sqlite`, created automatically. SQLite journals, databases, `data/`, and `node_modules/` are ignored by Git. No sample or real workout data is included.
-- Optional environment variables: `PORT` (1–65535, default 3000) and `DB_PATH` (SQLite file location; relative paths resolve from your working directory). No `.env` loader is needed.
+- Optional environment variables: `HOST` (bind address; default/empty `127.0.0.1`, containers use `0.0.0.0`), `PORT` (1–65535, default 3000), and `DB_PATH` (SQLite file location; relative paths resolve from your working directory). No `.env` loader is needed.
 - To back up, stop the server and copy the database file somewhere private. To restore, stop the server and replace that file with your backup.
-- All data stays on this computer; there are no accounts, analytics, cloud services, or external UI resources. SQLite is not encrypted; protect the computer and backups accordingly.
+- Data stays on the host or persistent volume you choose; there are no accounts, analytics, cloud services, or external UI resources. SQLite is not encrypted; protect the host, storage, and backups accordingly.
 - This first version is intended for one local user, not concurrent editing across tabs: the last saved edit wins. History loads all matching workouts; large-scale pagination, offline/PWA support, charts, and synchronization are not included.
+
+## Docker
+
+Build and run with a disposable image tag and a persistent named volume:
+
+```sh
+docker build -t workout-tracker:local .
+docker volume create workout-tracker-data
+docker run --name workout-tracker --detach --read-only --cap-drop=ALL --security-opt=no-new-privileges --publish 127.0.0.1:3000:3000 --mount source=workout-tracker-data,target=/data workout-tracker:local
+```
+
+Open **http://127.0.0.1:3000**. `docker stop workout-tracker` sends SIGTERM directly to Node for clean shutdown; `docker start workout-tracker` reuses the stored workouts. Removing the container does not remove the named volume. Do not delete that volume unless you intend to erase its data.
+
+The image pins Node **24.21.0-bookworm-slim** and its verified multi-platform digest, installs only locked production dependencies with `npm ci --omit=dev`, and runs as **UID/GID 1000**. Review/rebuild the base image deliberately when updating Node or OS security fixes. `.dockerignore` allowlists runtime files, excluding dependencies, Git history, data, and secret/env files. Never put credentials in `public/` (those files are served to users).
+
+`HOST=0.0.0.0`, `PORT=3000`, and `DB_PATH=/data/workouts.sqlite` are explicit image defaults. The entire `/data` directory must be writable by UID/GID 1000, including SQLite's adjacent `-wal` and `-shm` files. Fresh Docker named volumes inherit the image directory's ownership; pre-existing volumes or bind mounts must already have suitable permissions. No root startup/init container is required. Only use synthetic data for deployment smoke tests.
+
+## Kubernetes (your own cluster)
+
+The `k8s/` examples create **one** Deployment, an internal **ClusterIP** Service, and a **1 Gi ReadWriteOnce PVC**. They do not create a namespace, credentials, registry, Ingress, public IP, or storage class.
+
+1. Make your built image available to your cluster through its supported local-image or registry workflow. Building locally does not publish it. Replace `example.invalid/workout-tracker:replace-me` in `k8s/deployment.yaml` with your exact image tag (prefer an immutable digest); build for your cluster's CPU architecture.
+2. Select your own kube context and namespace. Confirm a suitable default storage class or pre-provisioned PV can satisfy the PVC. Use a SQLite-compatible filesystem with working file locks and shared memory, not NFS/SMB. The storage driver must honor `fsGroup: 1000`; otherwise ask your storage administrator to provision writable UID/GID 1000 storage, not a privileged/root init-container workaround.
+3. Review the rendered resources, then deploy **only when you choose**:
+
+```sh
+kubectl kustomize k8s
+kubectl apply -k k8s
+kubectl rollout status deployment/workout-tracker
+kubectl port-forward --address 127.0.0.1 service/workout-tracker 3000:3000
+```
+
+Open **http://127.0.0.1:3000** while port-forward runs. ClusterIP is not authentication: other reachable cluster workloads may access this app. Use a trusted cluster or your own network policy; external access requires authentication, TLS, and a protected reverse proxy. Do not add a public Ingress/LoadBalancer to this unauthenticated example.
+
+**Do not scale horizontally or add an autoscaler.** SQLite WAL is a local, single-writer database, not a shared multi-pod service; ReadWriteOnce alone does not prevent multiple pods on the same node. `replicas: 1` with `strategy: Recreate` avoids overlapping pods during updates, at the cost of brief downtime. Keep the same PVC across restarts and stop the app before backups/restores; deleting the PVC may permanently delete workouts depending on the PV's reclaim policy.
+
+Probes use the existing **GET /** UI route without returning workout/database details or writing data. SQLite schema setup occurs once before listening, never as a readiness side effect. Startup allows approximately 60 seconds; readiness/liveness check HTTP responsiveness, not ongoing database integrity. Requests/limits are conservative starting points, not measured capacity guarantees. The pod drops capabilities, disables privilege escalation and service-account token mounting, uses a read-only image filesystem, and allows 30 seconds for clean SIGTERM shutdown.
+
+These are generic deployment examples, not a deployment service. No image is published or cluster changed by building the image or rendering manifests.
 
 ## Checks
 
-- `npm test` — built-in Node test runner: API CRUD, invalid inputs, ordering/filtering, calendar dates, mixed units, SQL-like names, transaction rollback, cascade deletion, and persistence after reopening SQLite. A real `server.js` child process also checks HTTP startup, CRUD, clean shutdown, and persistence across restart using disposable synthetic data.
+- `npm test` — built-in Node test runner: API CRUD, invalid inputs, ordering/filtering, calendar dates, mixed units, SQL-like names, transaction rollback, cascade deletion, and persistence after reopening SQLite. A real `server.js` child process also checks default/empty/configured `HOST` binding, HTTP CRUD, SQLite WAL/shared-memory creation, clean SIGTERM shutdown, and persistence across restart using disposable synthetic data.
 - `npm run check` — syntax checks for server and browser JavaScript.
 - `npm audit --omit=dev` — dependency vulnerability check.
 - GitHub Actions runs syntax checks and tests with Node 24.21.0 in UTC, America/Los_Angeles, and Pacific/Auckland. Workflow permissions are read-only.

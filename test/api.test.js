@@ -129,6 +129,15 @@ test('malformed, wrong-content-type, and oversized requests receive clear JSON e
   }
 });
 
+test('GET / is a read-only health probe independent of workout storage', async (t) => {
+  const api = await fixture(t, { close() {} });
+  // A probe must work without invoking any store method or schema migration.
+  const result = await api('/');
+  assert.equal(result.status, 200);
+  assert.match(result.headers.get('content-type'), /text\/html/);
+  assert.match(result.data, /Workout journal/);
+});
+
 test('unexpected storage errors return a generic JSON error without database details', async (t) => {
   const api = await fixture(t, {
     list() { throw Object.assign(new Error('Private database details'), { code: 'SQLITE_ERROR' }); },
